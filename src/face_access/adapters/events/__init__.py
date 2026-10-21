@@ -1,0 +1,1 @@
+"""Publicadores de eventos substituíveis."""
