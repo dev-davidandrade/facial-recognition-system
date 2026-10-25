@@ -16,8 +16,14 @@ utilize-os somente na máquina local e não publique a porta 8000 na rede.
 - nomes de arquivo enviados pelo cliente não são utilizados;
 - imagens são decodificadas em memória;
 - modelos e banco fazem parte do readiness;
+- a porta do PostgreSQL no Compose é vinculada explicitamente a `127.0.0.1`;
 - respostas não expõem embeddings;
 - logs estruturados não recebem imagens nem embeddings.
+
+O modo webcam exige uma ação explícita do usuário. O navegador captura apenas um quadro por vez,
+libera a câmera ao encerrar o fluxo e não persiste o vídeo ou os quadros analisados. No cadastro
+assistido, cinco quadros ficam temporariamente na memória para revisão e são descartados ao sair,
+cancelar ou concluir o envio.
 
 ## Antes de produção
 

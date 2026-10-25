@@ -30,6 +30,7 @@ from face_access.api.schemas import (
     IdentificationResponse,
     PersonResponse,
     ReadinessResponse,
+    TemporalPolicyResponse,
     VerificationResponse,
 )
 from face_access.application.identification import IdentificationHandler
@@ -125,6 +126,19 @@ async def identify_face(
     return IdentificationResponse.from_domain(result)
 
 
+@identification_router.get("/temporal-policy", response_model=TemporalPolicyResponse)
+def temporal_policy(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> TemporalPolicyResponse:
+    return TemporalPolicyResponse(
+        confirmations_required=settings.temporal_confirmations,
+        window_size=settings.temporal_window_size,
+        max_gap_ms=settings.temporal_max_gap_ms,
+        review_after_ms=settings.temporal_review_after_ms,
+        frame_interval_ms=settings.temporal_frame_interval_ms,
+    )
+
+
 @person_router.post("", response_model=PersonResponse, status_code=status.HTTP_201_CREATED)
 async def create_person(
     payload: Annotated[CreatePersonRequest, Body()],
@@ -192,11 +206,34 @@ async def enroll_person(
     except InvalidEnrollmentCountError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     except EnrollmentRejectedError as exc:
+        rejections = [
+            {
+                "image_index": rejection.image_index,
+                "biometric_decision": rejection.decision.value,
+                "reason_code": rejection.reason_code,
+                "quality": (
+                    {
+                        "score": rejection.quality.score,
+                        "face_size_px": rejection.quality.face_size_px,
+                        "blur_score": rejection.quality.blur_score,
+                        "brightness": rejection.quality.brightness,
+                        "reasons": rejection.quality.reasons,
+                    }
+                    if rejection.quality is not None
+                    else None
+                ),
+            }
+            for rejection in exc.rejections
+        ]
         detail: dict[str, object] = {
-            "message": "Enrollment image was rejected",
+            "message": "Not enough enrollment images met the quality requirements",
             "image_index": exc.image_index,
             "biometric_decision": exc.decision.value,
             "reason_code": exc.reason_code,
+            "accepted_images": exc.accepted_images,
+            "required_images": exc.required_images,
+            "rejected_images": len(exc.rejections),
+            "rejections": rejections,
         }
         if exc.quality is not None:
             detail["quality"] = {

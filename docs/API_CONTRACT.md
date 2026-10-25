@@ -15,8 +15,9 @@ Consulta estado e metadados mínimos da pessoa. Não devolve templates nem embed
 ### `POST /v1/persons/{person_id}/enroll`
 
 Recebe de 2 a 10 imagens JPEG/PNG no campo multipart `images`. Cada imagem deve conter exatamente
-um rosto e passar na qualidade. O lote inteiro é rejeitado se qualquer imagem falhar. Em sucesso,
-persiste templates normalizados associados à versão exata dos modelos.
+um rosto e passar na qualidade. Amostras inválidas são descartadas individualmente; o lote é
+rejeitado apenas quando restam menos de duas imagens válidas. Em sucesso, persiste os templates
+válidos normalizados associados à versão exata dos modelos e informa os descartes na resposta.
 
 ### `DELETE /v1/persons/{person_id}`
 
@@ -57,6 +58,12 @@ A resposta contém `identified`, `unknown`, `ambiguous` ou uma rejeição de qua
 além do melhor escore, segundo melhor escore, margem, limiares, pessoa encontrada e versões dos
 modelos. Dados do candidato só são devolvidos em `identified`; embeddings nunca são expostos.
 Esta decisão é biométrica e não equivale a autorização de acesso.
+
+### `GET /v1/identifications/temporal-policy`
+
+Expõe somente os parâmetros públicos usados pelo console local: confirmações exigidas, tamanho da
+janela, intervalo máximo entre observações, prazo para revisão e intervalo entre capturas. O
+endpoint não cria sessão, não recebe biometria e não expõe segredos ou limiares administrativos.
 
 ## Evento futuro
 

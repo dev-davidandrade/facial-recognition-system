@@ -194,6 +194,24 @@ def test_enrollment_rejects_entire_batch_when_one_image_has_low_quality() -> Non
     assert unit_of_work.rollbacks == 1
 
 
+def test_enrollment_discards_bad_frame_when_enough_good_images_remain() -> None:
+    service, _, templates, unit_of_work = make_service()
+    person = service.create(CreatePersonCommand(True, "v1"))
+
+    result = service.enroll(
+        person.id,
+        (b"image-1", b"bad-quality", b"image-3", b"image-4", b"image-5"),
+        source_id="test",
+    )
+
+    assert result.templates_created == 4
+    assert result.images_received == 5
+    assert len(result.rejections) == 1
+    assert result.rejections[0].image_index == 1
+    assert len(templates.templates) == 4
+    assert unit_of_work.commits == 2
+
+
 def test_revoke_deactivates_all_templates() -> None:
     service, people, templates, _ = make_service()
     person = service.create(CreatePersonCommand(True, "v1"))
