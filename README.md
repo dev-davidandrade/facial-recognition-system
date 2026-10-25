@@ -44,6 +44,19 @@ uv run uvicorn face_access.main:app --reload
 
 A documentação interativa fica em `http://127.0.0.1:8000/docs`.
 
+Para testar os fluxos sem montar requisições manualmente, abra o console visual local em
+`http://127.0.0.1:8000/demo`. A página permite criar uma pessoa, cadastrar imagens, identificar
+uma imagem contra a galeria, comparar duas imagens, coletar cinco amostras de cadastro pela webcam
+e usar a câmera com confirmação temporal.
+No modo ao vivo, a mesma identidade precisa aparecer em 3 dos últimos 5 quadros; uma tentativa
+inconclusiva termina em revisão após 5 segundos. As pré-visualizações e os quadros existem somente
+na memória do navegador e não são persistidos pela interface.
+
+No cadastro assistido, crie ou consulte a pessoa, selecione **Usar webcam**, capture as cinco
+amostras guiadas e revise as miniaturas antes de confirmar. Quadros inválidos são descartados
+individualmente; o cadastro continua quando pelo menos duas amostras válidas permanecem. Sair da
+área de cadastro ou descartar a captura elimina imediatamente essas amostras temporárias.
+
 Os pesos não estão no Git. Depois de revisar [o cartão dos modelos](docs/MODEL_CARD.md) e aceitar
 o uso estritamente experimental:
 
@@ -54,6 +67,22 @@ uv run python scripts/validate_models.py
 
 O validador confirma checksums e verifica programaticamente que o SFace configurado produz
 embeddings de 128 dimensões, a dimensão da migration inicial.
+
+## Pesquisa e calibração
+
+As decisões experimentais são registradas no [diário de pesquisa](docs/RESEARCH_LOG.md). O
+[protocolo experimental](docs/RESEARCH_METHOD.md) define separação de sessões, métricas e ameaças à
+validade; a [base bibliográfica](docs/LITERATURE_REVIEW.md) começa pelas fontes primárias de YuNet e
+SFace.
+
+Uma grade de limiares pode ser avaliada sem imagens, embeddings ou nomes:
+
+```powershell
+uv run face-access-calibrate docs/examples/calibration_observations.example.csv `
+  --output artifacts/calibration-grid.csv
+```
+
+O CSV de exemplo é sintético. Resultados dele verificam a ferramenta, não medem o sistema.
 
 ## Comparação 1:1
 
@@ -77,9 +106,10 @@ Pelo Swagger em `http://127.0.0.1:8000/docs`:
 4. consulte com `GET /v1/persons/{person_id}`;
 5. `DELETE /v1/persons/{person_id}` revoga a pessoa e desativa seus templates.
 
-O lote de imagens é atômico: se uma delas não contiver exatamente um rosto ou falhar na
-qualidade, nenhum template do lote será persistido. Revogação não equivale à exclusão/anonimização
-definitiva, que será implementada junto à política de retenção.
+Imagens sem exatamente um rosto ou que falhem na qualidade são descartadas. Se restarem menos de
+duas imagens válidas, nenhum template será persistido; caso contrário, apenas os templates válidos
+são gravados na mesma transação. Revogação não equivale à exclusão/anonimização definitiva, que
+será implementada junto à política de retenção.
 
 ## Identificação 1:N
 

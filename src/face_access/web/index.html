@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta
+      name="description"
+      content="Console local para testar cadastro, identificação e verificação facial."
+    />
+    <title>Face Access Lab</title>
+    <link rel="stylesheet" href="/demo/assets/app.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <header class="topbar">
+      <a class="brand" href="#overview" aria-label="Face Access Lab — início">
+        <span class="brand-mark" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </span>
+        <span>
+          <strong>Face Access</strong>
+          <small>laboratório local</small>
+        </span>
+      </a>
+
+      <div class="service-status" aria-label="Estado dos serviços">
+        <span class="status-chip" id="api-status"><i></i> API verificando</span>
+        <span class="status-chip" id="ready-status"><i></i> dependências</span>
+      </div>
+    </header>
+
+    <div class="app-shell">
+      <aside class="sidebar">
+        <nav aria-label="Navegação principal">
+          <button class="nav-item is-active" data-view="overview">
+            <span class="nav-icon">01</span><span>Visão geral</span>
+          </button>
+          <button class="nav-item" data-view="enrollment">
+            <span class="nav-icon">02</span><span>Cadastro</span>
+          </button>
+          <button class="nav-item" data-view="identification">
+            <span class="nav-icon">03</span><span>Identificação</span>
+          </button>
+          <button class="nav-item" data-view="verification">
+            <span class="nav-icon">04</span><span>Comparação 1:1</span>
+          </button>
+        </nav>
+
+        <div class="privacy-note">
+          <span class="privacy-icon" aria-hidden="true">◇</span>
+          <div>
+            <strong>Execução local</strong>
+            <p>Pré-visualizações ficam somente nesta página. Nenhuma imagem entra nos logs.</p>
+          </div>
+        </div>
+
+        <a class="docs-link" href="/docs" target="_blank" rel="noreferrer">
+          Abrir documentação da API <span aria-hidden="true">↗</span>
+        </a>
+      </aside>
+
+      <main class="workspace">
+        <section class="view is-visible" id="view-overview" data-view-panel="overview">
+          <div class="hero">
+            <div class="eyebrow">AMBIENTE DE EXPERIMENTAÇÃO</div>
+            <h1>Teste o pipeline facial<br /><span>sem lutar com endpoints.</span></h1>
+            <p>
+              Cadastre identidades consentidas, faça buscas 1:N e compare duas imagens usando
+              YuNet, SFace e pgvector — tudo na sua máquina.
+            </p>
+            <div class="hero-actions">
+              <button class="button button-primary" data-go="enrollment">Cadastrar pessoa</button>
+              <button class="button button-secondary" data-go="identification">Testar identificação</button>
+            </div>
+          </div>
+
+          <div class="health-grid">
+            <article class="health-card">
+              <div class="health-head"><span>API</span><b id="health-api-value">—</b></div>
+              <p id="health-api-detail">Consultando o serviço local.</p>
+            </article>
+            <article class="health-card">
+              <div class="health-head"><span>Banco</span><b id="health-db-value">—</b></div>
+              <p id="health-db-detail">Aguardando readiness.</p>
+            </article>
+            <article class="health-card">
+              <div class="health-head"><span>Modelos</span><b id="health-model-value">—</b></div>
+              <p id="health-model-detail">Aguardando readiness.</p>
+            </article>
+          </div>
+
+          <div class="section-heading compact">
+            <div>
+              <span class="eyebrow">FLUXOS DISPONÍVEIS</span>
+              <h2>Escolha o que deseja validar</h2>
+            </div>
+          </div>
+
+          <div class="workflow-grid">
+            <button class="workflow-card" data-go="enrollment">
+              <span class="workflow-number">01</span>
+              <strong>Cadastro consentido</strong>
+              <p>Crie uma pessoa e gere de 2 a 10 templates faciais.</p>
+              <span class="workflow-link">Começar <i>→</i></span>
+            </button>
+            <button class="workflow-card" data-go="identification">
+              <span class="workflow-number">02</span>
+              <strong>Identificação 1:N</strong>
+              <p>Compare uma nova imagem contra a galeria ativa.</p>
+              <span class="workflow-link">Identificar <i>→</i></span>
+            </button>
+            <button class="workflow-card" data-go="verification">
+              <span class="workflow-number">03</span>
+              <strong>Verificação 1:1</strong>
+              <p>Descubra se duas imagens representam a mesma pessoa.</p>
+              <span class="workflow-link">Comparar <i>→</i></span>
+            </button>
+          </div>
+
+          <div class="warning-banner">
+            <span>!</span>
+            <p>
+              <strong>Ambiente experimental.</strong> Ainda não há prova de vida. Uma decisão
+              biométrica positiva não deve controlar acesso físico real.
+            </p>
+          </div>
+        </section>
+
+        <section class="view" id="view-enrollment" data-view-panel="enrollment">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">CADASTRO CONSENTIDO</span>
+              <h1>Prepare uma identidade</h1>
+              <p>Crie a pessoa e use arquivos ou a webcam para formar sua galeria facial.</p>
+            </div>
+            <span class="step-pill">2 etapas</span>
+          </div>
+
+          <div class="two-column">
+            <article class="panel">
+              <div class="panel-title">
+                <span class="step-number">1</span>
+                <div><h2>Criar pessoa</h2><p>Use identificadores sem dados desnecessários.</p></div>
+              </div>
+              <form id="create-person-form" class="form-stack">
+                <label>
+                  <span>Nome de exibição</span>
+                  <input id="display-name" name="display_name" maxlength="255" placeholder="Ex.: David" />
+                </label>
+                <label>
+                  <span>Identificador externo</span>
+                  <input id="external-id" name="external_id" maxlength="255" placeholder="Ex.: portfolio-user-001" />
+                </label>
+                <label>
+                  <span>Versão do consentimento</span>
+                  <input id="consent-version" name="consent_version" maxlength="64" value="portfolio-v1" required />
+                </label>
+                <label class="checkbox-row">
+                  <input id="consent-confirmed" type="checkbox" required />
+                  <span>Confirmo que as imagens foram fornecidas com consentimento.</span>
+                </label>
+                <button class="button button-primary button-full" type="submit">Criar pessoa</button>
+              </form>
+              <div class="person-summary is-hidden" id="person-summary" aria-live="polite">
+                <div class="avatar" id="person-avatar">?</div>
+                <div class="person-copy">
+                  <small>Pessoa ativa</small>
+                  <strong id="person-summary-name">—</strong>
+                  <code id="person-summary-id">—</code>
+                </div>
+                <button class="icon-button" id="copy-person-id" title="Copiar ID" type="button">⧉</button>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-title">
+                <span class="step-number">2</span>
+                <div><h2>Gerar templates</h2><p>Use arquivos ou capture amostras na hora.</p></div>
+              </div>
+              <label>
+                <span>ID da pessoa</span>
+                <div class="input-action">
+                  <input id="enroll-person-id" placeholder="UUID criado na etapa anterior" />
+                  <button id="lookup-person" class="mini-button" type="button">Consultar</button>
+                </div>
+              </label>
+              <div class="mode-switch enrollment-mode-switch" role="tablist" aria-label="Origem das imagens de cadastro">
+                <button class="mode-button is-active" type="button" role="tab" aria-selected="true" data-enroll-mode="files">
+                  Enviar imagens
+                </button>
+                <button class="mode-button" type="button" role="tab" aria-selected="false" data-enroll-mode="camera">
+                  Usar webcam
+                </button>
+              </div>
+              <form id="enroll-form" class="form-stack" data-enroll-panel="files">
+                <div class="dropzone" data-dropzone="enroll">
+                  <input id="enroll-images" type="file" accept="image/jpeg,image/png" multiple required />
+                  <div class="dropzone-copy">
+                    <span class="upload-glyph">＋</span>
+                    <strong>Arraste as imagens ou clique para selecionar</strong>
+                    <small>JPEG ou PNG · mínimo 2, máximo 10</small>
+                  </div>
+                  <div class="preview-grid" id="enroll-preview"></div>
+                </div>
+                <div class="file-count" id="enroll-count">Nenhuma imagem selecionada</div>
+                <button class="button button-primary button-full" type="submit">Cadastrar imagens</button>
+              </form>
+              <div id="enroll-camera-panel" class="form-stack is-hidden" data-enroll-panel="camera">
+                <div class="camera-stage enrollment-camera-stage" id="enroll-camera-stage">
+                  <video id="enroll-video" autoplay muted playsinline></video>
+                  <canvas id="enroll-canvas" hidden></canvas>
+                  <div class="camera-guide" aria-hidden="true"><span></span></div>
+                  <div class="camera-state" id="enroll-camera-state"><i></i><span>Câmera desligada</span></div>
+                  <div class="camera-placeholder" id="enroll-camera-placeholder">
+                    <span class="camera-glyph">◎</span>
+                    <strong>Cadastro pela webcam</strong>
+                    <small>Coletaremos cinco quadros guiados e mostraremos tudo antes do envio.</small>
+                  </div>
+                  <div class="capture-prompt is-hidden" id="enroll-capture-prompt">
+                    <strong>Olhe para a câmera</strong>
+                    <span>0 de 5</span>
+                  </div>
+                </div>
+                <div class="camera-actions">
+                  <button class="button button-primary" id="open-enroll-camera" type="button">Ativar câmera</button>
+                  <button class="button button-secondary" id="capture-enroll-frames" type="button" disabled>Capturar 5 quadros</button>
+                </div>
+                <div class="captured-samples is-hidden" id="captured-samples">
+                  <div class="captured-samples-head">
+                    <div><strong>Amostras temporárias</strong><span>Revise antes de cadastrar.</span></div>
+                    <button class="mini-button" id="clear-enroll-frames" type="button">Descartar</button>
+                  </div>
+                  <div class="preview-grid captured-preview-grid" id="enroll-camera-preview"></div>
+                </div>
+                <button class="button button-primary button-full" id="submit-enroll-camera" type="button" disabled>
+                  Cadastrar quadros capturados
+                </button>
+                <p class="inline-privacy">Os cinco quadros ficam apenas na memória até você confirmar ou descartar.</p>
+              </div>
+              <div class="result-slot" id="enroll-result" aria-live="polite">
+                <span class="result-placeholder">O resultado do cadastro aparecerá aqui.</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-identification" data-view-panel="identification">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">BUSCA NA GALERIA</span>
+              <h1>Identificação 1:N</h1>
+              <p>Use uma imagem ou a webcam e confirme a pessoa ao longo de vários quadros.</p>
+            </div>
+            <span class="step-pill">YuNet + SFace</span>
+          </div>
+
+          <div class="mode-switch" role="tablist" aria-label="Modo de identificação">
+            <button class="mode-button is-active" type="button" role="tab" aria-selected="true" data-identify-mode="file">
+              Imagem única
+            </button>
+            <button class="mode-button" type="button" role="tab" aria-selected="false" data-identify-mode="live">
+              Webcam ao vivo
+            </button>
+          </div>
+
+          <div class="analysis-layout">
+            <article class="panel upload-panel">
+              <form id="identify-form" class="form-stack" data-identify-panel="file">
+                <div class="dropzone dropzone-large" data-dropzone="identify">
+                  <input id="identify-image" type="file" accept="image/jpeg,image/png" required />
+                  <div class="dropzone-copy">
+                    <span class="upload-glyph">＋</span>
+                    <strong>Selecione a imagem de consulta</strong>
+                    <small>Use uma foto que não participou do cadastro.</small>
+                  </div>
+                  <div class="single-preview" id="identify-preview"></div>
+                </div>
+                <button class="button button-primary button-full" type="submit">Analisar identidade</button>
+              </form>
+              <div id="live-panel" class="form-stack is-hidden" data-identify-panel="live">
+                <div class="camera-stage" id="camera-stage">
+                  <video id="live-video" autoplay muted playsinline></video>
+                  <canvas id="live-canvas" hidden></canvas>
+                  <div class="camera-guide" aria-hidden="true"><span></span></div>
+                  <div class="camera-state" id="camera-state">
+                    <i></i>
+                    <span>Câmera desligada</span>
+                  </div>
+                  <div class="camera-placeholder" id="camera-placeholder">
+                    <span class="camera-glyph">◎</span>
+                    <strong>Pronto para analisar</strong>
+                    <small>A permissão da câmera só será solicitada quando você iniciar.</small>
+                  </div>
+                </div>
+                <div class="temporal-progress" aria-live="polite">
+                  <div>
+                    <strong id="temporal-title">Confirmação temporal</strong>
+                    <span id="temporal-detail">3 confirmações da mesma pessoa em 5 quadros.</span>
+                  </div>
+                  <div class="frame-dots" id="frame-dots" aria-label="Janela de confirmações"></div>
+                </div>
+                <div class="camera-actions">
+                  <button class="button button-primary" id="start-live" type="button">Iniciar câmera</button>
+                  <button class="button button-secondary" id="stop-live" type="button" disabled>Parar</button>
+                </div>
+                <p class="inline-privacy">
+                  O vídeo não é gravado. Quadros JPEG efêmeros são processados somente pela API local.
+                </p>
+              </div>
+            </article>
+            <article class="panel result-panel">
+              <div class="panel-title simple"><div><h2>Resultado</h2><p>Decisão e evidências da análise.</p></div></div>
+              <div class="result-slot result-slot-large" id="identify-result" aria-live="polite">
+                <span class="result-placeholder">Aguardando uma imagem para análise.</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-verification" data-view-panel="verification">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">COMPARAÇÃO DIRETA</span>
+              <h1>Verificação 1:1</h1>
+              <p>Compare duas imagens e veja se ultrapassam o limiar biométrico configurado.</p>
+            </div>
+            <span class="step-pill">2 imagens</span>
+          </div>
+
+          <form id="verify-form">
+            <div class="compare-grid">
+              <article class="panel">
+                <div class="image-label"><span>A</span> Primeira imagem</div>
+                <div class="dropzone" data-dropzone="verify-first">
+                  <input id="verify-first" type="file" accept="image/jpeg,image/png" required />
+                  <div class="dropzone-copy"><span class="upload-glyph">＋</span><strong>Selecionar imagem</strong></div>
+                  <div class="single-preview compact-preview" id="verify-first-preview"></div>
+                </div>
+              </article>
+              <div class="compare-symbol" aria-hidden="true">↔</div>
+              <article class="panel">
+                <div class="image-label"><span>B</span> Segunda imagem</div>
+                <div class="dropzone" data-dropzone="verify-second">
+                  <input id="verify-second" type="file" accept="image/jpeg,image/png" required />
+                  <div class="dropzone-copy"><span class="upload-glyph">＋</span><strong>Selecionar imagem</strong></div>
+                  <div class="single-preview compact-preview" id="verify-second-preview"></div>
+                </div>
+              </article>
+            </div>
+            <button class="button button-primary compare-button" type="submit">Comparar rostos</button>
+          </form>
+          <article class="panel verify-result-panel">
+            <div class="result-slot" id="verify-result" aria-live="polite">
+              <span class="result-placeholder">O resultado da comparação aparecerá aqui.</span>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="/demo/assets/app.js" defer></script>
+  </body>
+</html>

@@ -128,9 +128,11 @@ class FakePersonService:
         return EnrollmentResult(
             person_id=person_id,
             templates_created=2,
+            images_received=2,
             model_version_id=uuid4(),
             embedding_model_version="fake-embedder-v1",
             qualities=(quality, quality),
+            rejections=(),
         )
 
     def revoke(self, person_id: UUID) -> None:
@@ -178,6 +180,26 @@ async def test_health_endpoint() -> None:
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+
+
+@pytest.mark.anyio
+async def test_demo_console_and_assets_are_served_locally() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=make_app()), base_url="http://test"
+    ) as client:
+        page = await client.get("/demo")
+        stylesheet = await client.get("/demo/assets/app.css")
+        script = await client.get("/demo/assets/app.js")
+
+    assert page.status_code == 200
+    assert "Face Access Lab" in page.text
+    assert "Cadastro consentido" in page.text
+    assert "Usar webcam" in page.text
+    assert stylesheet.status_code == 200
+    assert "--accent" in stylesheet.text
+    assert script.status_code == 200
+    assert "/v1/identifications/identify" in script.text
+    assert "demo-ui-webcam-enrollment" in script.text
 
 
 @pytest.mark.anyio
@@ -230,6 +252,23 @@ async def test_identify_endpoint_returns_the_matched_person_without_embedding() 
     assert body["best_similarity"] == 0.88
     assert body["score_margin"] == 0.26
     assert "embedding" not in body
+
+
+@pytest.mark.anyio
+async def test_temporal_policy_exposes_only_public_confirmation_settings() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=make_app()), base_url="http://test"
+    ) as client:
+        response = await client.get("/v1/identifications/temporal-policy")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "confirmations_required": 3,
+        "window_size": 5,
+        "max_gap_ms": 1000,
+        "review_after_ms": 5000,
+        "frame_interval_ms": 350,
+    }
 
 
 @pytest.mark.anyio
@@ -301,6 +340,8 @@ async def test_enroll_person_with_multiple_images() -> None:
 
     assert response.status_code == 200
     assert response.json()["templates_created"] == 2
+    assert response.json()["images_received"] == 2
+    assert response.json()["images_rejected"] == 0
 
 
 @pytest.mark.anyio

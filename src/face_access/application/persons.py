@@ -50,20 +50,35 @@ class InvalidEnrollmentCountError(PersonServiceError):
         self.maximum = maximum
 
 
+@dataclass(frozen=True, slots=True)
+class EnrollmentImageRejection:
+    image_index: int
+    decision: BiometricDecision
+    reason_code: str
+    quality: QualityAssessment | None = None
+
+
 class EnrollmentRejectedError(PersonServiceError):
     def __init__(
         self,
         *,
-        image_index: int,
-        decision: BiometricDecision,
-        reason_code: str,
-        quality: QualityAssessment | None = None,
+        rejections: tuple[EnrollmentImageRejection, ...],
+        accepted_images: int,
+        required_images: int,
     ) -> None:
-        super().__init__(f"Enrollment image {image_index} rejected: {reason_code}")
-        self.image_index = image_index
-        self.decision = decision
-        self.reason_code = reason_code
-        self.quality = quality
+        first = rejections[0]
+        super().__init__(
+            f"Enrollment has only {accepted_images} accepted images; "
+            f"at least {required_images} are required"
+        )
+        self.rejections = rejections
+        self.accepted_images = accepted_images
+        self.required_images = required_images
+        # Compatibilidade com clientes que já exibiam a primeira rejeição.
+        self.image_index = first.image_index
+        self.decision = first.decision
+        self.reason_code = first.reason_code
+        self.quality = first.quality
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,9 +93,11 @@ class CreatePersonCommand:
 class EnrollmentResult:
     person_id: UUID
     templates_created: int
+    images_received: int
     model_version_id: UUID
     embedding_model_version: str
     qualities: tuple[QualityAssessment, ...]
+    rejections: tuple[EnrollmentImageRejection, ...]
 
 
 class PersonManagementHandler(Protocol):
@@ -174,35 +191,52 @@ class PersonManagementService:
             raise PersonNotActiveError(f"Person is not active: {person_id}")
 
         candidates: list[FaceTemplateCandidate] = []
+        rejections: list[EnrollmentImageRejection] = []
         try:
             for index, image in enumerate(images):
                 frame = self._decoder.decode(image, source_id=source_id)
                 faces = self._detector.detect(frame)
                 if not faces:
-                    raise EnrollmentRejectedError(
-                        image_index=index,
-                        decision=BiometricDecision.NO_FACE,
-                        reason_code="no_face_detected",
+                    rejections.append(
+                        EnrollmentImageRejection(
+                            image_index=index,
+                            decision=BiometricDecision.NO_FACE,
+                            reason_code="no_face_detected",
+                        )
                     )
+                    continue
                 if len(faces) > 1:
-                    raise EnrollmentRejectedError(
-                        image_index=index,
-                        decision=BiometricDecision.MULTIPLE_FACES,
-                        reason_code="multiple_faces_detected",
+                    rejections.append(
+                        EnrollmentImageRejection(
+                            image_index=index,
+                            decision=BiometricDecision.MULTIPLE_FACES,
+                            reason_code="multiple_faces_detected",
+                        )
                     )
+                    continue
                 face = faces[0]
                 quality = self._quality_evaluator.evaluate(frame, face)
                 if not quality.accepted:
-                    raise EnrollmentRejectedError(
-                        image_index=index,
-                        decision=BiometricDecision.LOW_QUALITY,
-                        reason_code="quality_rejected",
-                        quality=quality,
+                    rejections.append(
+                        EnrollmentImageRejection(
+                            image_index=index,
+                            decision=BiometricDecision.LOW_QUALITY,
+                            reason_code="quality_rejected",
+                            quality=quality,
+                        )
                     )
+                    continue
                 embedding = self._embedder.embed(self._aligner.align(frame, face))
                 if len(embedding.values) != self._model_descriptor.embedding_dimension:
                     raise RuntimeError("Embedding dimension does not match the active model")
                 candidates.append(FaceTemplateCandidate(embedding, quality))
+
+            if len(candidates) < self._minimum_enrollment_images:
+                raise EnrollmentRejectedError(
+                    rejections=tuple(rejections),
+                    accepted_images=len(candidates),
+                    required_images=self._minimum_enrollment_images,
+                )
 
             model_version_id = self._model_versions.get_or_create(self._model_descriptor)
             self._templates.add_many(person_id, model_version_id, candidates)
@@ -214,9 +248,11 @@ class PersonManagementService:
         return EnrollmentResult(
             person_id=person_id,
             templates_created=len(candidates),
+            images_received=len(images),
             model_version_id=model_version_id,
             embedding_model_version=self._embedder.model_version,
             qualities=tuple(candidate.quality for candidate in candidates),
+            rejections=tuple(rejections),
         )
 
     def revoke(self, person_id: UUID) -> None:

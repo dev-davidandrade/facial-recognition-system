@@ -50,4 +50,23 @@ pgvector apenas na mesma versão de modelo, agrega o melhor template de cada pes
 melhor candidato, o segundo e a margem entre eles. O resultado continua sendo somente biométrico.
 
 Política de autorização e registro persistente de eventos serão incrementos separados. O fluxo
-temporal consumirá `FrameSource` e não alterará o domínio biométrico.
+temporal não altera o domínio biométrico.
+
+## Captura local e confirmação temporal
+
+No console de demonstração, o navegador funciona como `FrameSource`: a webcam permanece no
+cliente e um quadro JPEG efêmero é enviado por vez ao endpoint de identificação local. Não existe
+upload do fluxo de vídeo, fila de quadros ou gravação pela aplicação. Uma nova captura só começa
+depois que a requisição anterior termina, evitando acumular imagens atrasadas.
+
+O cliente mantém uma janela deslizante configurada pela API. A confirmação exige que o mesmo
+`person_id` apareça em 3 de 5 resultados. O cronômetro começa somente quando algum rosto é
+detectado e encaminha a tentativa para revisão após 5 segundos sem consenso. Essa orquestração é
+estado efêmero da sessão do navegador; a identificação biométrica da API permanece independente e
+sem estado entre quadros.
+
+Para cadastro assistido, a mesma fonte captura cinco quadros guiados. Os `Blob`s permanecem apenas
+na memória da página e são exibidos ao operador antes do envio ao endpoint de cadastro. O serviço
+descarta amostras inválidas individualmente e persiste atomicamente as válidas quando há pelo menos
+duas. Trocar a pessoa selecionada invalida a captura, e sair do fluxo ou descartar as amostras
+revoga as URLs temporárias e libera a câmera.

@@ -21,6 +21,7 @@ dependencies = [
 
 [project.scripts]
 face-access-api = "face_access.main:run"
+face-access-calibrate = "face_access.research.cli:run"
 
 [build-system]
 requires = ["hatchling"]

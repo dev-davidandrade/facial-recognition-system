@@ -24,6 +24,14 @@ class ReadinessResponse(BaseModel):
     checks: dict[str, str]
 
 
+class TemporalPolicyResponse(BaseModel):
+    confirmations_required: int
+    window_size: int
+    max_gap_ms: int
+    review_after_ms: int
+    frame_interval_ms: int
+
+
 class CreatePersonRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -155,23 +163,44 @@ class IdentificationResponse(BaseModel):
         )
 
 
+class EnrollmentRejectionResponse(BaseModel):
+    image_index: int
+    biometric_decision: BiometricDecision
+    reason_code: str
+    quality: QualityResponse | None
+
+
 class EnrollmentResponse(BaseModel):
     person_id: UUID
     templates_created: int
+    images_received: int
+    images_rejected: int
     model_version_id: UUID
     embedding_model_version: str
     qualities: tuple[QualityResponse, ...]
+    rejections: tuple[EnrollmentRejectionResponse, ...]
 
     @classmethod
     def from_domain(cls, result: EnrollmentResult) -> "EnrollmentResponse":
         return cls(
             person_id=result.person_id,
             templates_created=result.templates_created,
+            images_received=result.images_received,
+            images_rejected=len(result.rejections),
             model_version_id=result.model_version_id,
             embedding_model_version=result.embedding_model_version,
             qualities=tuple(
                 quality_response
                 for quality in result.qualities
                 if (quality_response := QualityResponse.from_domain(quality)) is not None
+            ),
+            rejections=tuple(
+                EnrollmentRejectionResponse(
+                    image_index=rejection.image_index,
+                    biometric_decision=rejection.decision,
+                    reason_code=rejection.reason_code,
+                    quality=QualityResponse.from_domain(rejection.quality),
+                )
+                for rejection in result.rejections
             ),
         )
